@@ -1,0 +1,16 @@
+build
+debug
+disassembly
+dist
+/.vscode/settings.json
+/music-box-dsPIC33.X/Makefile
+/music-box-dsPIC33.X/nbproject/Makefile-default.mk
+/music-box-dsPIC33.X/nbproject/Makefile-genesis.properties
+/music-box-dsPIC33.X/nbproject/Makefile-impl.mk
+/music-box-dsPIC33.X/nbproject/Makefile-local-default.mk
+/music-box-dsPIC33.X/nbproject/Makefile-variables.mk
+/music-box-dsPIC33.X/nbproject/Package-default.bash
+/music-box-dsPIC33.X/.generated_files/
+/music-box-dsPIC33.X/queuelogs
+/music-box-dsPIC33.X/defmplabxtrace.log
+/music-box-dsPIC33.X/defmplabxtrace.log.inx
