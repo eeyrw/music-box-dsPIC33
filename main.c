@@ -15,6 +15,7 @@
 #include "uart_pic24f.h"
 #include "xprintf.h"
 #include "ff.h"
+#include "diskio.h"
 
 // FOSCSEL
 #pragma config FNOSC = PRIPLL                         // Oscillator Mode (Internal Fast RC (FRC))
