@@ -133,7 +133,7 @@
         <property key="list-source" value="false"/>
         <property key="list-symbols" value="false"/>
         <property key="oXC16asm-extra-opts" value=""/>
-        <property key="oXC16asm-list-to-file" value="true"/>
+        <property key="oXC16asm-list-to-file" value="false"/>
         <property key="omit-debug-dirs" value="false"/>
         <property key="omit-forms" value="false"/>
         <property key="preprocessor-macros" value=""/>
