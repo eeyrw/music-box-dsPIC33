@@ -20,7 +20,7 @@
 #include "uart_pic24f.h"
 
 #define BUFFER_SIZE 128
-#define _DI()		__asm__ volatile("disi #0x3FFF")
+#define _DI()		__asm__ volatile("disi #0x3FFF") // Disable global interrput for 0x3FFF machine cycles
 #define _EI()		__asm__ volatile("disi #0")
 
 static volatile int TxRun;		/* Tx running flag */

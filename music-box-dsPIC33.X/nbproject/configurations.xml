@@ -41,7 +41,7 @@
         <targetDevice>dsPIC33FJ32GP304</targetDevice>
         <targetHeader></targetHeader>
         <targetPluginBoard></targetPluginBoard>
-        <platformTool>pk4hybrid</platformTool>
+        <platformTool>noID</platformTool>
         <languageToolchain>XC16</languageToolchain>
         <languageToolchainVersion>2.10</languageToolchainVersion>
         <platform>3</platform>
@@ -133,7 +133,7 @@
         <property key="list-source" value="false"/>
         <property key="list-symbols" value="false"/>
         <property key="oXC16asm-extra-opts" value=""/>
-        <property key="oXC16asm-list-to-file" value="false"/>
+        <property key="oXC16asm-list-to-file" value="true"/>
         <property key="omit-debug-dirs" value="false"/>
         <property key="omit-forms" value="false"/>
         <property key="preprocessor-macros" value=""/>
