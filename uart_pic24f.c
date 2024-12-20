@@ -19,7 +19,7 @@
 #include "clock.h"
 #include "uart_pic24f.h"
 
-#define BUFFER_SIZE 128
+#define BUFFER_SIZE 256
 #define _DI()		__asm__ volatile("disi #0x3FFF") // Disable global interrput for 0x3FFF machine cycles
 #define _EI()		__asm__ volatile("disi #0")
 
@@ -34,14 +34,14 @@ static volatile struct {
 
 /* UART1 Rx interrupt ISR */
 
-void __attribute__((interrupt, no_auto_psv)) _U1RXInterrupt (void)
+void __attribute__((interrupt, no_auto_psv)) _U2RXInterrupt (void)
 {
 	unsigned char d;
 	int i;
 
 
-	d = (unsigned char)U1RXREG;	/* Get received data */
-	_U1RXIF = 0;				/* Clear Rx interrupt flag */
+	d = (unsigned char)U2RXREG;	/* Get received data */
+	_U2RXIF = 0;				/* Clear Rx interrupt flag */
 	i = RxFifo.ct;				/* Number of bytes in the FIFO */
 	if (i < BUFFER_SIZE) {		/* Skip if FIFO is full */
 		RxFifo.ct = ++i;
@@ -53,27 +53,24 @@ void __attribute__((interrupt, no_auto_psv)) _U1RXInterrupt (void)
 
 
 
-/* UART1 Tx interrupt ISR */
 
-void __attribute__((interrupt, no_auto_psv)) _U1TXInterrupt (void)
+void __attribute__((interrupt, no_auto_psv)) _U2TXInterrupt (void)
 {
 	int i;
 
 
-	_U1TXIF = 0;		/* Clear Tx interrupt flag */
+	_U2TXIF = 0;		/* Clear Tx interrupt flag */
 
 	i = TxFifo.ct;		/* Number of data in the FIFO */
 	if (i) {			/* If any data is available, pop a byte and send it. */
 		TxFifo.ct = --i;
 		i = TxFifo.ri;
-		U1TXREG = TxFifo.buff[i++];		/* Send a byte */
+		U2TXREG = TxFifo.buff[i++];		/* Send a byte */
 		TxFifo.ri = i % BUFFER_SIZE;	/* Next read ptr */
 	} else {			/* No data in the Tx FIFO */
 		TxRun = 0;		/* Stop transmission sequense */
 	}
 }
-
-
 
 /* Check number of bytes in the Rx FIFO */
 
@@ -122,7 +119,7 @@ void uart_putc (unsigned char d)
 	TxFifo.ct++;
 	if (!TxRun) {		/* If transmission sequense is not running, start the tx sequense */
 		TxRun = 1;
-		_U1TXIF = 1;	/* Force trigger Tx interrupt */
+		_U2TXIF = 1;	/* Force trigger Tx interrupt */
 	}
 	_EI();
 }
@@ -133,23 +130,18 @@ void uart_putc (unsigned char d)
 
 void uart_init (unsigned long bps)
 {
-	/* Disable UART1 Tx/Rx interrupts */
-	_U1RXIE = 0;
-	_U1TXIE = 0;
-
-	/* Initialize UART1 */
-	U1BRG = FCY / 16 / bps - 1;
-	_UARTEN = 1;
-	_UTXEN = 1;
-
-	/* Clear Tx/Rx FIFOs */
-	TxFifo.ri = 0; TxFifo.wi = 0; TxFifo.ct = 0;
-	RxFifo.ri = 0; RxFifo.wi = 0; RxFifo.ct = 0;
-	TxRun = 0;
+    /* Disable UART2 Tx/Rx interrupts */
+	_U2RXIE = 0;
+	_U2TXIE = 0;
+    
+	/* Initialize UART2 */
+	U2BRG = FCY / 16 / bps - 1;
+	U2MODEbits.UARTEN = 1;
+    U2STAbits.UTXEN = 1;
 
 	/* Enable UART Tx/Rx interruptrs */
-	_U1RXIE = 1;
-	_U1TXIE = 1;
+	_U2RXIE = 1;
+	_U2TXIE = 1;
 }
 
 

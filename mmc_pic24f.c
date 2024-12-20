@@ -22,14 +22,14 @@
 
 
 /* MMC/SDC socket controls  (Platform dependent) */
-#define CS_LOW()	_LATB15 = 0	/* MMC CS = L */
-#define CS_HIGH()	_LATB15 = 1	/* MMC CS = H */
-#define MMC_CD		(!_RB11)	/* Card detected   (yes:true, no:false, default:true) */
-#define MMC_WP		(_RB10)		/* Write protected (yes:true, no:false, default:false) */
+#define CS_LOW()	_LATB0 = 0	/* MMC CS = L */
+#define CS_HIGH()	_LATB0 = 1	/* MMC CS = H */
+#define MMC_CD		1	/* Card detected   (yes:true, no:false, default:true) */
+#define MMC_WP		0		/* Write protected (yes:true, no:false, default:false) */
 
 /* SPI bit rate controls */
-#define	FCLK_SLOW()			/* Set slow clock for card initialization (100k-400k) */
-#define	FCLK_FAST()			/* Set fast clock for generic read/write */
+#define	FCLK_SLOW()		SPI2STATbits.SPIEN = 0;SPI2CON1bits.PPRE=0b11;SPI2CON1bits.SPRE=0b000;SPI2STATbits.SPIEN = 1	/* Set slow clock for card initialization (100k-400k) */
+#define	FCLK_FAST()		SPI2STATbits.SPIEN = 0;SPI2CON1bits.PPRE=0b11;SPI2CON1bits.SPRE=0b101;SPI2STATbits.SPIEN = 1	/* Set fast clock for generic read/write */
 
 
 
@@ -78,14 +78,15 @@ static void power_on (void)
 {
 	;					/* Turn socket power on, delay >1ms (Nothing to do) */
 
-	SPI1CON1 = 0x013B;	/* Enable SPI1 */
-	SPI1CON2 = 0x0000;
-	_SPIEN = 1;
+	SPI2CON1 = 0x013B;	/* Enable SPI1 */
+	SPI2CON2 = 0x0000;
+	SPI2STATbits.SPIEN = 1;
+    CS_HIGH();
 }
 
 static void power_off (void)
 {
-	_SPIEN = 0;			/* Disable SPI1 */
+	SPI2STATbits.SPIEN = 0;			/* Disable SPI1 */
 
 	;					/* Turn socket power off (Nothing to do) */
 }
@@ -99,9 +100,9 @@ static void power_off (void)
 /* Single byte SPI transaction */
 static BYTE xchg_spi (BYTE dat)
 {
-	SPI1BUF = dat;			/* Initiate an SPI transaction */
-	while (!_SPIRBF) ;		/* Wait for end of the SPI transaction */
-	return (BYTE)SPI1BUF;	/* Get received byte */
+	SPI2BUF = dat;			/* Initiate an SPI transaction */
+	while (!SPI2STATbits.SPIRBF) ;		/* Wait for end of the SPI transaction */
+	return (BYTE)SPI2BUF;	/* Get received byte */
 }
 
 
@@ -112,12 +113,12 @@ static void xmit_spi_multi (
 )
 {
 	do {
-		SPI1BUF = *buff++;	/* Initiate an SPI transaction */
-		while (!_SPIRBF) ;	/* Wait for end of the SPI transaction */
-		SPI1BUF;			/* Discard received byte */
-		SPI1BUF = *buff++;
-		while (!_SPIRBF) ;
-		SPI1BUF;
+		SPI2BUF = *buff++;	/* Initiate an SPI transaction */
+		while (!SPI2STATbits.SPIRBF) ;	/* Wait for end of the SPI transaction */
+		SPI2BUF;			/* Discard received byte */
+		SPI2BUF = *buff++;
+		while (!SPI2STATbits.SPIRBF) ;
+		SPI2BUF;
 	} while (cnt -= 2);
 }
 
@@ -129,12 +130,12 @@ static void rcvr_spi_multi (
 )
 {
 	do {
-		SPI1BUF = 0xFF;		/* Initiate an SPI transaction */
-		while (!_SPIRBF) ;	/* Wait for end of the SPI transaction */
-		*buff++ = SPI1BUF;	/* Get received byte */
-		SPI1BUF = 0xFF;
-		while (!_SPIRBF) ;
-		*buff++ = SPI1BUF;
+		SPI2BUF = 0xFF;		/* Initiate an SPI transaction */
+		while (!SPI2STATbits.SPIRBF) ;	/* Wait for end of the SPI transaction */
+		*buff++ = SPI2BUF;	/* Get received byte */
+		SPI2BUF = 0xFF;
+		while (!SPI2STATbits.SPIRBF) ;
+		*buff++ = SPI2BUF;
 	} while (cnt -= 2);
 }
 
