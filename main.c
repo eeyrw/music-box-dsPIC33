@@ -44,12 +44,6 @@
 #pragma config ICS = PGD2               // Comm Channel Select (Communicate on PGC1/EMUC1 and PGD1/EMUD1)
 #pragma config JTAGEN = OFF             // JTAG Port Enable (JTAG is Disabled)
 
-FATFS FatFs; /* File system object */
-BYTE Buff[512]; /* Working buffer */
-
-volatile UINT Timer; /* 1kHz increment timer */
-volatile WORD rtcYear = 2017;
-volatile BYTE rtcMon = 5, rtcMday = 14, rtcHour, rtcMin, rtcSec;
 
 #define CODEC_SAMPLE_RATE 44100
 #define DCI_BCG_VALUE (((FCY/64)/CODEC_SAMPLE_RATE)-1)
@@ -61,9 +55,6 @@ volatile BYTE rtcMon = 5, rtcMday = 14, rtcHour, rtcMin, rtcSec;
 short txBufferA[FRAME_SAMPLE_NUM] __attribute__((space(dma)));
 short txBufferB[FRAME_SAMPLE_NUM] __attribute__((space(dma)));
 
-const short txBufferConst[4]={1,2,3,4};
-
-#define FCC(c1,c2,c3,c4)	(((DWORD)c4<<24)+((DWORD)c3<<16)+((WORD)c2<<8)+(BYTE)c1)	/* FourCC */
 
 volatile BYTE frameCount = 0;
 volatile BYTE txBufIdx = 0;
@@ -72,132 +63,6 @@ volatile BYTE txBufIdx = 0;
 void DCIInit(void);
 void DMAInit(void);
 
-static
-DWORD load_header(const FIL* fp) /* 0:Invalid format, 1:I/O error, >=1024:Number of samples */ {
-    volatile DWORD sz, f;
-    volatile BYTE b, al = 0;
-    int rb;
-
-    if (f_read(fp, Buff, 12, &rb)) return 1; /* Load file header (12 bytes) */
-
-    if (rb != 12 || LD_DWORD(Buff + 8) != FCC('W', 'A', 'V', 'E')) return 0;
-
-    for (;;) {
-        f_read(fp, Buff, 8, &rb); /* Get Chunk ID and size */
-        if (rb != 8) return 0;
-        sz = LD_DWORD(&Buff[4]); /* Chunk size */
-
-        switch (LD_DWORD(&Buff[0])) { /* Switch by chunk ID */
-            case FCC('f', 'm', 't', ' '): /* 'fmt ' chunk */
-                if (sz & 1) sz++; /* Align chunk size */
-                if (sz > 100 || sz < 16) return 0; /* Check chunk size */
-                f_read(fp, Buff, sz, &rb); /* Get content */
-                if (rb != sz) return 0;
-                if (Buff[0] != 1) return 0; /* Check coding type (LPCM) */
-                b = Buff[2];
-                if (b != 1 && b != 2) return 0; /* Check channels (1/2) */
-                al = b; /* Save channel flag */
-                b = Buff[14];
-                if (b != 8 && b != 16) return 0; /* Check resolution (8/16 bit) */
-                //GPIOR0 |= b;							/* Save resolution flag */
-                if (b & 16) al <<= 1;
-                f = LD_DWORD(&Buff[4]); /* Check sampling freqency (8k-48k) */
-                if (f < 8000 || f > 48000) return 4;
-                //OCR0A = (BYTE)(F_CPU / 8 / f) - 1;		/* Set sampling interval */
-                break;
-
-            case FCC('d', 'a', 't', 'a'): /* 'data' chunk */
-                if (!al) return 0; /* Check if format is valid */
-                if (sz < 1024 || (sz & (al - 1))) return 0; /* Check size */
-                if (fp->fptr & (al - 1)) return 0; /* Check word alignment */
-                return sz; /* Start to play */
-
-            case FCC('D', 'I', 'S', 'P'): /* 'DISP' chunk */
-            case FCC('L', 'I', 'S', 'T'): /* 'LIST' chunk */
-            case FCC('f', 'a', 'c', 't'): /* 'fact' chunk */
-                if (sz & 1) sz++; /* Align chunk size */
-                f_lseek(fp, sz); /* Skip this chunk */
-                break;
-
-            default: /* Unknown chunk */
-                return 0;
-        }
-    }
-
-    return 0;
-}
-
-static
-FRESULT play(
-        const char *dir, /* Directory */
-        const char *fn /* File */
-        ) {
-    DWORD sz;
-    FRESULT res;
-    WORD btr;
-    FIL fil;
-    WORD rb;
-    BYTE lastUpdateFrameCount = 0;
-    BYTE frameCountoffest;
-    xsprintf((char*) Buff, "%s/%s", dir, fn);
-    res = f_open(&fil, Buff, FA_READ);
-    ; /* Open sound file */
-    if (res == FR_OK) {
-        sz = load_header(&fil); /* Check file format and ready to play */
-        if (sz < FRAME_BYTE_NUM) return 255; /* Cannot play this file */
-        f_read(&fil, Buff, 512 - (fil.fptr % 512), &rb); /* Snip sector unaligned part */
-        sz -= rb;
-        lastUpdateFrameCount = frameCount - 1;
-        do { /* Data transfer loop */
-            btr = (sz > FRAME_BYTE_NUM) ? FRAME_BYTE_NUM : (WORD) sz; /* A chunk of audio data */
-            if (frameCount == 0 && lastUpdateFrameCount == 255)
-                frameCountoffest = 1;
-            else
-                frameCountoffest = frameCount - lastUpdateFrameCount;
-
-            if (frameCountoffest == 1) {
-                _LATC1 = 1;
-                if (txBufIdx == 0) {
-                    res = f_read(&fil, txBufferA, btr, &rb);
-                    if (res == FR_OK) {
-                        OC1RS = txBufferA[0] > 0 ? txBufferA[0] >> 4 : 0;
-                        OC2RS = txBufferA[0] < 0 ? -txBufferA[0] >> 4 : 0;
-                        for (int i = 0; i < FRAME_SAMPLE_NUM; i++)
-                            txBufferA[i] = txBufferA[i] >> 6;
-
-                    } else {
-                        _LATC0 ^= 1;
-                    }
-
-                } else {
-                    res = f_read(&fil, txBufferB, btr, &rb);
-                    if (res == FR_OK) {
-                        OC1RS = txBufferB[0] > 0 ? txBufferB[0] >> 4 : 0;
-                        OC2RS = txBufferB[0] < 0 ? -txBufferB[0] >> 4 : 0;
-                        for (int i = 0; i < FRAME_SAMPLE_NUM; i++)
-                            txBufferB[i] = txBufferB[i] >> 6;
-                    } else {
-                        _LATC0 ^= 1;
-                    }
-                }
-                lastUpdateFrameCount++;
-                if (rb != FRAME_BYTE_NUM) break; /* Break on error or end of data */
-                sz -= rb; /* Decrease data counter */
-                _LATC1 = 0;
-            } else if (frameCountoffest == 0) {
-                //continue;
-            } else {
-                //lastUpdateFrameCount = frameCount - 1;
-                //xputs("overflow");
-                //overflow
-                _LATC0 ^= 1;
-            }
-
-
-        } while (1);
-    }
-    return res;
-}
 
 extern int asmFunction(int a,int b);
 int main(void) {
@@ -326,31 +191,6 @@ int main(void) {
     return 0;
 }
 
-/*---------------------------------------------------------*/
-/* User Provided RTC Function for FatFs module             */
-/*---------------------------------------------------------*/
-/* This is a real time clock service to be called from     */
-/* FatFs module. Any valid time must be returned even if   */
-/* the system does not support an RTC.                     */
-
-/* This function is not required in read-only cfg.         */
-
-DWORD get_fattime(void) {
-    DWORD tmr;
-
-
-    //_DI();
-    /* Pack date and time into a DWORD variable */
-    tmr = (((DWORD) rtcYear - 1980) << 25)
-            | ((DWORD) rtcMon << 21)
-            | ((DWORD) rtcMday << 16)
-            | (WORD) (rtcHour << 11)
-            | (WORD) (rtcMin << 5)
-            | (WORD) (rtcSec >> 1);
-    //_EI();
-
-    return tmr;
-}
 
 void DCIInit(void) {
     DCICON1 = 0;
@@ -457,35 +297,6 @@ void __attribute__((__interrupt__, auto_psv)) _DMACError(void) {
 
 
 void __attribute__((interrupt, auto_psv)) _T1Interrupt(void) {
-    static const BYTE samurai[12] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-    static UINT div1k;
-    BYTE n;
-
 
     _T1IF = 0; /* Clear irq flag */
-    Timer++; /* Performance counter for this module */
-    disk_timerproc(); /* Drive timer procedure of low level disk I/O module */
-
-    /* Real Time Clock */
-    if (++div1k >= 1000) {
-        div1k = 0;
-        if (++rtcSec >= 60) {
-            rtcSec = 0;
-            if (++rtcMin >= 60) {
-                rtcMin = 0;
-                if (++rtcHour >= 24) {
-                    rtcHour = 0;
-                    n = samurai[rtcMon - 1];
-                    if ((n == 28) && !(rtcYear & 3)) n++;
-                    if (++rtcMday > n) {
-                        rtcMday = 1;
-                        if (++rtcMon > 12) {
-                            rtcMon = 1;
-                            rtcYear++;
-                        }
-                    }
-                }
-            }
-        }
-    }
 }

@@ -21,16 +21,10 @@
       <itemPath>../uart_pic24f.c</itemPath>
       <itemPath>../clock.h</itemPath>
       <itemPath>../uart_pic24f.h</itemPath>
-      <itemPath>../ff.h</itemPath>
-      <itemPath>../ffconf.h</itemPath>
-      <itemPath>../ffsystem.c</itemPath>
-      <itemPath>../ffunicode.c</itemPath>
-      <itemPath>../mmc_pic24f.c</itemPath>
       <itemPath>../xprintf.c</itemPath>
       <itemPath>../xprintf.h</itemPath>
-      <itemPath>../ff.c</itemPath>
+      <itemPath>../asmFunc.s</itemPath>
     </logicalFolder>
-    <itemPath>../asmFunc.s</itemPath>
   </logicalFolder>
   <sourceRootList>
     <Elem>..</Elem>
@@ -361,6 +355,8 @@
         <property key="memories.programmemory" value="true"/>
         <property key="memories.programmemory.ranges" value="0-57ff"/>
         <property key="poweroptions.powerenable" value="false"/>
+        <property key="programmerToGoFilePath"
+                  value="C:/Users/yuan/Desktop/music-box-dsPIC33/music-box-dsPIC33.X/debug/default/music-box-dsPIC33_ptg"/>
         <property key="programmerToGoImageName" value="music-box-dsPIC33_ptg"/>
         <property key="programoptions.donoteraseauxmem" value="false"/>
         <property key="programoptions.eraseb4program" value="true"/>
